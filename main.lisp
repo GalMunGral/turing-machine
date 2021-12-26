@@ -7,9 +7,9 @@
 (defvar *pos* 2)
 (defconstant *t* (open "tape" :if-exists :overwrite
                              :direction :io))
-(defun G ()
+(defun S ()
   (file-position *t* *pos*)
-  (read-char *t*)
+  (read-char *t* nil #\#)
  )
 
 (defun P (c) 
@@ -17,15 +17,15 @@
   (write-char c *t*))
 
 (defun L () 
+  ; (print "LEFT")
   (decf *pos*))
 
 (defun R ()
+  ; (print "RIGHT")
   (incf *pos*))
 
 (defun any (c)
-  (and
-    (not (eq c #\Space))
-    (not (eq c #\Newline))))
+  (not (eq c #\#)))
   
 
 ;;;; P.236
@@ -34,7 +34,7 @@
 
 (defun f (C R a)
   (cond
-    ((eq (G) #\E)
+    ((eq (S) #\E)
       (L)
       (f1 C R a))
     (T
@@ -43,9 +43,9 @@
 
 (defun f1 (C R a) 
   (cond
-    ((eq (G) a)
+    ((eq (S) a)
       (funcall C))
-    ((any (G))
+    ((any (S))
       (R)
       (f1 C R a))
     (T
@@ -54,9 +54,9 @@
     
 (defun f2 (C R a)
   (cond
-    ((eq (G) a)
+    ((eq (S) a)
       (funcall C))
-    ((any (G))
+    ((any (S))
       (R)
       (f1 C R a))
     (T
@@ -76,7 +76,8 @@
 
 ;;; Erase all `a`
 
-(defun e* (R a) (e ^(e* R a) R a))
+(defun e* (R a)
+  (e ^(e* R a) R a))
 
 ;;; Print `b` at the end
 
@@ -85,7 +86,7 @@
 
 (defun pe1 (C b)
   (cond
-    ((any (G))
+    ((any (S))
       (R) (R)
       (pe1 C b))
     (T
@@ -116,7 +117,7 @@
   (f* ^(c1 C) R a))
 
 (defun c1 (C)
-  (let ((b (G)))
+  (let ((b (S)))
     (if b (pe C b))))
 
 ;;;; P.238
@@ -160,12 +161,12 @@
   (f* ^(cp1 C R b) ^(f R E b) a))
 
 (defun cp1 (C R b)
-  (let ((g (G)))
+  (let ((g (S)))
     (f* ^(cp2 C R g) R b)))
 
 (defun cp2 (C R g)
   (cond
-    ((eq (G) g)
+    ((eq (S) g)
       (funcall C))
     (t
       (funcall R))))
@@ -176,39 +177,39 @@
 ;;; Compare sequence `a` with sequence `b`
 ;;; Matched symbols at the beginning are are erased
 
-(defun cpe* (R E a b)
-  (cpe ^(cpe* R E a b) R E a b))
+(defun cpe* (R C a b)
+  (cpe ^(cpe* R C a b) R C a b))
 
 ;;;; P.239
 
-(defun q (C)
+(defun _g (C)
   (cond
-    ((any (G))
+    ((any (S))
       (R)
-      (q C))
+      (_g C))
     (t
       (R)
-      (q1 C))))
+      (_g1 C))))
 
-(defun q1 (C)
+(defun _g1 (C)
   (cond
-    ((any (G))
-      (R) (q C))
+    ((any (S))
+      (R) (_g C))
     (t ; two consecutive empty slot -> end reached
       (funcall C)))) 
 
 ;;; Find the last `a`
 
-(defun q* (C a)
-  (q ^(q1* C a)))
+(defun g (C a)
+  (_g ^(g1 C a)))
 
-(defun q1* (C a)
+(defun g1 (C a)
   (cond
-    ((eq (G) a)
+    ((eq (S) a)
       (funcall C))
     (t
       (L)
-      (q1* C a))))
+      (g1 C a))))
 
 ;;; Print multiple symbols at the end
 
@@ -223,27 +224,107 @@
 (defun ce3* (R a b c)
   (ce* ^(ce2* R b c) a))
 
+;;; (Clear the marks on multiple sequences)
+
+(defun e2* (R a b)
+  (e* ^(e* R b) a))
+
 ;;; Clear all marks
 
-(defun e* (C)
+(defun e** (C)
   (cond
-    ((eq (G) #\E)
+    ((eq (S) #\E)
       (R)
-      (e1* C))
+      (e1** C))
     (t
       (L)
-      (e* C))))
+      (e** C))))
 
-(defun e1* (C)
+(defun e1** (C)
   (cond
-    ((any (G))
+    ((any (S))
       (R) (P #\Space) (R)
-      (e1* C))
+      (e1** C))
     (t
       (funcall C))))
 
-;;;; P. 244 The Universal Machine
+;;;; P. 244 
 
+(defun con (C a)
+  (cond
+    ((eq (S) #\A)
+      (print "mark first D")
+      (L) (P a) (R) ; Mark symbol 'D'
+      (con1 C a))
+    (t
+      (print "not this")
+      (print (S))
+      (R) (R)
+      (con C a))))
+
+(defun con1 (C a)
+  (cond
+    ((eq (S) #\A)
+      (print "mark A")
+      (R) (P a) (R)
+      (con1 C a))
+    ((eq (S) #\D)
+      (print "mark second D")
+      (R) (P a) (R) ; 'DA..AAA' -> 'DC..CCC'
+      (con2 C a))))
+
+(defun con2 (C a)
+  (cond
+    ((eq (S) #\C)
+      (print "mark C")
+      (R) (P a) (R)
+      (con2 C a))
+    (t
+      (print "done")
+      (R) (R) ; four squares to the right of last 'C'
+      (funcall C))))
+
+;;;; THE UNIVERSAL MACHINE
+
+(defun b ()
+  (f ^(b1) ^(b1) #\.))
+
+(defun b1 ()
+  (R) (P #\Space) (R) (P #\:)
+  (R) (P #\Space) (R) (P #\D)
+  (R) (P #\Space) (R) (P #\A)
+  (R) (P #\Space) (R) (P #\D) ; Let's see if this works...
+  (anf))
+
+(defun anf ()
+  (g ^(anf1) #\:))
+
+(defun anf1 ()
+  (con ^(fom) #\y)) ; Mark current state with 'y'
+
+;;; NOTE: this seems to assume the program is correct
+;;; i.e. no unexpected configurations
+(defun fom ()
+  (cond
+    ((eq (S) #\;) ; Next instruction (in reverse order)
+      (R) (P #\z) (L)
+      (con ^(fmp) #\x)) ; Mark instruction with 'x'
+    ((eq (S) #\z)
+      (L) (L)
+      (fom))
+    ((eq (S) #\E)
+      (print "NO MATCHING INSTR"))
+    (t
+      (L)
+      (fom))))
+
+(defun fmp ()
+  (cpe* ^(e2* ^(anf) #\x #\y) ^(sim) #\x #\y))
+
+(defun sim ()
+  (print 1))
+
+(b)
 
 (close *t*)
 
