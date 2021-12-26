@@ -9,7 +9,7 @@
                              :direction :io))
 (defun S ()
   (file-position *t* *pos*)
-  (read-char *t* nil #\#)
+  (read-char *t* nil #\Space)
  )
 
 (defun P (c) 
@@ -25,7 +25,7 @@
   (incf *pos*))
 
 (defun any (c)
-  (not (eq c #\#)))
+  (not (eq c #\Space)))
   
 
 ;;;; P.236
@@ -87,9 +87,9 @@
 (defun pe1 (C b)
   (cond
     ((any (S))
-      (R) (R)
+      (R) (P (S)) (R)
       (pe1 C b))
-    (T
+    (t
       (P b)
       (funcall C))))
 
@@ -224,6 +224,12 @@
 (defun ce3* (R a b c)
   (ce* ^(ce2* R b c) a))
 
+(defun ce4* (R a b c d)
+  (ce* ^(ce3* R b c d) a))
+
+(defun ce5* (R a b c d e)
+  (ce* ^(ce4* R b c d e) a))
+
 ;;; (Clear the marks on multiple sequences)
 
 (defun e2* (R a b)
@@ -253,34 +259,27 @@
 (defun con (C a)
   (cond
     ((eq (S) #\A)
-      (print "mark first D")
       (L) (P a) (R) ; Mark symbol 'D'
       (con1 C a))
     (t
-      (print "not this")
-      (print (S))
       (R) (R)
       (con C a))))
 
 (defun con1 (C a)
   (cond
     ((eq (S) #\A)
-      (print "mark A")
       (R) (P a) (R)
       (con1 C a))
     ((eq (S) #\D)
-      (print "mark second D")
       (R) (P a) (R) ; 'DA..AAA' -> 'DC..CCC'
       (con2 C a))))
 
 (defun con2 (C a)
   (cond
     ((eq (S) #\C)
-      (print "mark C")
       (R) (P a) (R)
       (con2 C a))
     (t
-      (print "done")
       (R) (R) ; four squares to the right of last 'C'
       (funcall C))))
 
@@ -289,6 +288,8 @@
 (defun b ()
   (f ^(b1) ^(b1) #\.))
 
+;;; Set up initial state
+
 (defun b1 ()
   (R) (P #\Space) (R) (P #\:)
   (R) (P #\Space) (R) (P #\D)
@@ -296,14 +297,16 @@
   (R) (P #\Space) (R) (P #\D) ; Let's see if this works...
   (anf))
 
+;;; Mark current state with 'y'
+
 (defun anf ()
   (g ^(anf1) #\:))
 
 (defun anf1 ()
-  (con ^(fom) #\y)) ; Mark current state with 'y'
+  (con ^(fom) #\y))
 
-;;; NOTE: this seems to assume the program is correct
-;;; i.e. no unexpected configurations
+;;; Find matching instruction
+
 (defun fom ()
   (cond
     ((eq (S) #\;) ; Next instruction (in reverse order)
@@ -313,16 +316,152 @@
       (L) (L)
       (fom))
     ((eq (S) #\E)
+      ;; unexpected configuration
       (print "NO MATCHING INSTR"))
     (t
       (L)
       (fom))))
 
+;;; There seems to be a mistake here:
+;;; On error the machine should jump to 'anf' state
+;;; rather than 'fom' as 'y' marks have been erased
+
 (defun fmp ()
   (cpe* ^(e2* ^(anf) #\x #\y) ^(sim) #\x #\y))
 
+;;; Simulate (execute the instruction)
+
 (defun sim ()
-  (print 1))
+  (f* ^(sim1) ^(sim1) #\z))
+
+(defun sim1 ()
+  (con ^(sim2) #\Space)) ; Ignore
+
+;;; Mark out the "DC..C" part
+
+(defun sim2 ()
+  (cond
+    ((eq (S) #\A)
+      (sim3)) ; DC..C(L|R|N) -> DA..A
+    (t
+      ;; There is a mistake in the paper
+      ;; The sequence should be LPRRR rather than RPRRR
+      (L) (P #\u) (R) (R) (R)
+      (sim2))))
+
+(defun sim3 ()
+  (cond
+    ((not (eq (S) #\A))
+      (L) (P #\y)
+      (e* ^(mf) #\z)) ; End of instruction
+    (t
+      (L) (P #\y) (R) (R) (R)
+      (sim3))))
+
+(defun mf ()
+  (g ^(mf1) #\:)) ; A typo in the paper, 'mf' should be 'mf1'
+
+(defun mf1 ()
+  ;; Find "DA..A"
+  (cond
+    ((not (eq (S) #\A))
+      (R) (R)
+      (mf1))
+    (t
+      (L) (L) (L) (L)
+      (mf2))))
+
+(defun mf2 ()
+  ;; Mark out previous symbol (DC..C)
+  (cond
+    ((eq (S) #\:)
+      (mf4))
+    ((eq (S) #\C)
+      (R) (P #\x) (L) (L) (L)
+      (mf2))
+    ((eq (S) #\D)
+      (R) (P #\x) (L) (L) (L)
+      (mf3))))
+
+(defun mf3 ()
+  ;; Mark out all symbols at the beginning
+  (cond
+    ((eq (S) #\:)
+      (mf4))
+    (t
+      (R) (P #\v) (L) (L) (L)
+      (mf3))))
+
+(defun mf4 ()
+  ;; Move to the immediate next symbol
+  (con ^(l* ^(l* ^(mf5))) #\Space))
+
+(defun mf5 ()
+  ;; Mark out symbols at the end
+  (cond
+    ((any (S))
+      (R) (P #\w) (R)
+      (mf5))
+    (t
+      (P #\:)
+      (sh))))
+
+(defun sh ()
+  (f ^(sh1) ^(inst) #\u))
+
+(defun sh1 ()
+  (L) ; LLL in the paper ??
+  (sh2))
+
+(defun sh2 ()
+  (cond
+    ((eq (S) #\D)
+      (R) (R) ; RRRR in the paper ??
+      (sh3)) ; sh2 in the paer ??
+    (t
+      (inst))))
+
+(defun sh3 ()
+  (cond
+    ((eq (S) #\C) ; DC..
+      (R) (R)
+      (sh4))
+    (t
+      (inst))))
+
+(defun sh4 ()
+  (cond
+    ((eq (S) #\C) ; DCC..
+      (R) (R)
+      (sh5))
+    (t ; DC
+      (pe2 ^(inst) #\0 #\:))))
+
+(defun sh5 ()
+  (cond
+    ((eq (S) #\C)
+      (inst))
+    (t ; DCC
+      (pe2 ^(inst) #\1 #\:))))
+
+
+(defun inst ()
+  ;; Last symbol marked 'u' -> L|R|N
+  (g ^(l* ^(inst1)) #\u))
+
+(defun inst1 ()
+  (let ((a (S)))
+    (R) (P #\Space)
+    (inst1* a)))
+
+(defun inst1* (a)
+  (case a
+    (#\L (ce5* ^(ov) #\v #\y #\x #\u #\w))
+    (#\R (ce5* ^(ov) #\v #\x #\u #\y #\w))
+    (#\L (ce5* ^(ov) #\v #\x #\y #\u #\w))))
+
+(defun ov ()
+  (e** ^(pe ^(anf) #\D)))
 
 (b)
 
