@@ -417,7 +417,7 @@
   (cond
     ((eq (S) #\D)
       (R) (R) ; RRRR in the paper ??
-      (sh3)) ; sh2 in the paer ??
+      (sh3)) ; sh2 in the paper ??
     (t
       (inst))))
 
@@ -458,7 +458,7 @@
   (case a
     (#\L (ce5* ^(ov) #\v #\y #\x #\u #\w))
     (#\R (ce5* ^(ov) #\v #\x #\u #\y #\w))
-    (#\L (ce5* ^(ov) #\v #\x #\y #\u #\w))))
+    (#\N (ce5* ^(ov) #\v #\x #\y #\u #\w))))
 
 (defun ov ()
   (e** ^(pe ^(anf) #\D)))
