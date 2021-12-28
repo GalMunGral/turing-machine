@@ -277,7 +277,8 @@
       (sim3/mark-next-state))
     (t
       ;; The paper says LPRRR, seems to be a mistake ??
-      (L) (P #\u) (R) (R) (R)
+      (L) (P #\u) (R)
+      (R) (R)
       (sim2/mark-operation))))
 
 (defun sim3/mark-next-state ()
@@ -374,7 +375,6 @@
       (pe2/append-2 ^(inst/print-full-config) #\1 #\:))
     (t
       (inst/print-full-config))))
-
 
 (defun inst/print-full-config ()
   (g/find-last ^(l/move-left ^(inst1/print-full-config)) #\u))
