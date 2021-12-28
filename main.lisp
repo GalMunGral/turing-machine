@@ -276,7 +276,7 @@
     ((eq (cur-sym) #\A)
       (sim3/mark-next-state))
     (t
-      ;; The paper says LPRRR, seems to be a mistake ??
+      ;; The paper says RPRRR, seems to be a mistake ??
       (L) (P #\u) (R)
       (R) (R)
       (sim2/mark-operation))))
