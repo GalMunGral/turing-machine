@@ -5,30 +5,22 @@
   (list 'lambda (list) (read stream t nil t))))
 
 (defvar *pos* 2)
-(defconstant *t* (open "tape" :if-exists :overwrite
-                             :direction :io))
+(defconstant *t* (open "tape" :if-exists :overwrite :direction :io))
+
+(defun none (c) (eq c #\Space))
+
 (defun cur-sym ()
   (file-position *t* *pos*)
   (read-char *t* nil #\Space)
  )
 
+(defun L () (decf *pos*))
+
+(defun R () (incf *pos*))
+
 (defun P (c) 
   (file-position *t* *pos*)
   (write-char c *t*))
-
-(defun L () 
-  ; (print "LEFT")
-  (decf *pos*))
-
-(defun R ()
-  ; (print "RIGHT")
-  (incf *pos*))
-
-(defun none (c)
-  (eq c #\Space))
-
-(defun any (c)
-  (not (none c)))
 
 (defun f/find-first (k return a)
   (cond
