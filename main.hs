@@ -177,179 +177,77 @@ con2 :: Table () -> Char -> Table ()
 con2 k a = _S >>= \s -> if
     | s /= 'C'  -> do _R; _R; k
     | otherwise -> do _R; _P a; _R; con2 k a
-
-m = do
-    ce' (return ()) 'x'
+    
+{- THE UNIVERSAL MACHINE -}
 
 main = do
     f <- openFile "tape" ReadWriteMode
-    runStateT (runReaderT m f) 2
+    runStateT (runReaderT b f) 2
     hClose f
-{-
 
+b = f b1 b1 '.'
+b1 = do
+    _R; _P ' '; _R; _P ':'
+    _R; _P ' '; _R; _P 'D'
+    _R; _P ' '; _R; _P 'A'
+    _R; _P ' '; _R; _P 'D'
+    anf
 
-;;;; THE UNIVERSAL MACHINE
+anf = g' anf1 ':'
+anf1 = con fom 'y'
 
-(defun b/begin ()
-  (f/find-first ^(b1/init) ^(b1/init) #\.))
+fom = _S >>= \s -> if
+    | s == ';'  -> do _R; _P 'z'; _L; con fmp 'x'
+    | s == 'z'  -> do _L; _L; fom
+    | otherwise -> do _L; fom
+fmp = cpe' (e2' anf 'x' 'y') sim 'x' 'y'
 
-(defun b1/init ()
-  (R) (P #\Space) (R) (P #\:)
-  (R) (P #\Space) (R) (P #\D)
-  (R) (P #\Space) (R) (P #\A)
-  (R) (P #\Space) (R) (P #\D)
-  (anf/advance-to-next))
+sim = f' sim1 sim1 'z'
+sim1 = con sim2 ' '
+sim2 = _S >>= \s -> if
+    | s == 'A'  -> sim3
+    | otherwise -> do _L; _P 'u'; _R; _R; _R; sim2
+sim3 = _S >>= \s -> if
+    | s /= 'A' -> do _L; _P 'y'; e' mf 'z'
+    | otherwise -> do _L; _P 'y'; _R; _R; _R; sim3
 
-(defun anf/advance-to-next ()
-  (g/find-last ^(anf1/advance-to-next) #\:))
+mf = g' mf1 ':'
+mf1 = _S >>= \s -> if
+    | s == 'A'  -> do _L; _L; _L; _L; mf2
+    | otherwise -> do _R; _R; mf1
+mf2 = _S >>= \s -> if
+    | s == ':'  -> mf4
+    | s == 'C'  -> do _R; _P 'x'; _L; _L; _L; mf2
+    | s == 'D'  -> do _R; _P 'x'; _L; _L; _L; mf3
+mf3 = _S >>= \s -> if
+    | s == ':'  -> mf4
+    | otherwise -> do _R; _P 'v'; _L; _L; _L; mf3
+mf4 = con (l (l mf5)) ' '
+mf5 = _S >>= \s -> if
+    | s == ' '  -> do _P ':'; sh
+    | otherwise -> do _R; _P 'w'; _R; mf5
 
-(defun anf1/advance-to-next ()
-  (con/mark-config ^(fom/find-matching-rule) #\y))
+sh = f sh1 inst 'u'
+sh1 = do _L; sh2
+sh2 = _S >>= \s -> if
+    | s == 'D'  -> do _R; _R; sh3
+    | otherwise -> inst
+sh3 = _S >>= \s -> if
+    | s /= 'C'  -> inst
+    | otherwise -> do _R; _R; sh4
+sh4 = _S >>= \s -> if
+    | s /= 'C'  -> pe2 inst '0' ':'
+    | otherwise -> do _R; _R; sh5
+sh5 = _S >>= \s -> if
+    | s /= 'C' -> pe2 inst '1' ':'
+    | otherwise -> inst
 
-(defun fom/find-matching-rule ()
-  (cond
-    ((eq (cur-sym) #\;)
-      (R) (P #\z) (L) ; mark visited
-      (con/mark-config ^(fmp/match-rule) #\x)) 
-    ((eq (cur-sym) #\z)
-      (L) (L) ; skip visited rules
-      (fom/find-matching-rule))
-    (t
-      (L)
-      (fom/find-matching-rule))))
+inst = g' (l inst1) 'u'
+inst1 = _S >>= \s -> do
+    _R; _P ' '
+    case s of
+        'L' -> (ce5' ov 'v' 'y' 'x' 'u' 'w')
+        'R' -> (ce5' ov 'v' 'x' 'u' 'y' 'w')
+        'N' -> (ce5' ov 'v' 'x' 'y' 'u' 'w')
 
-(defun fmp/match-rule ()
-  ;; There seems to be a mistake here:
-  ;; On error the machine should jump to 'anf' state
-  ;; rather than 'fom' as 'y' marks have been erased
-  (cpe/compare-sequence-erase ^(e/erase-all-2 ^(anf/advance-to-next) #\x #\y)
-    ^(sim/simulate-rule) #\x #\y))
-
-(defun sim/simulate-rule ()
-  (f/find-first-marked ^(sim1/simulate) ^(sim1/simulate) #\z))
-
-(defun sim1/simulate ()
-  (con/mark-config ^(sim2/mark-operation) #\Space))
-
-(defun sim2/mark-operation ()
-  (cond
-    ((eq (cur-sym) #\A)
-      (sim3/mark-next-state))
-    (t
-      ;; The paper says RPRRR, seems to be a mistake ??
-      (L) (P #\u) (R)
-      (R) (R)
-      (sim2/mark-operation))))
-
-(defun sim3/mark-next-state ()
-  (cond
-    ((not (eq (cur-sym) #\A))
-      (L) (P #\y)
-      (e/erase-all ^(mf/mark-full-config) #\z))
-    (t
-      (L) (P #\y) (R)
-      (R) (R)
-      (sim3/mark-next-state))))
-
-(defun mf/mark-full-config ()
-  ;; typo - 'mf' should be 'mf1'
-  (g/find-last ^(mf1/find-cursor) #\:))
-
-(defun mf1/find-cursor ()
-  (cond
-    ((eq (cur-sym) #\A)
-      (L) (L) (L) (L)
-      (mf2/mark-prev-symbols))
-    (t
-      (R) (R)
-      (mf1/find-cursor))))
-
-(defun mf2/mark-prev-symbols ()
-  (cond
-    ((eq (cur-sym) #\:)
-      (mf4/mark-next-symbols))
-    ((eq (cur-sym) #\C)
-      (R) (P #\x) (L)
-      (L) (L)
-      (mf2/mark-prev-symbols))
-    ((eq (cur-sym) #\D)
-      (R) (P #\x) (L)
-      (L) (L)
-      (mf3/mark-prev-symbols))))
-
-(defun mf3/mark-prev-symbols ()
-  (cond
-    ((eq (cur-sym) #\:)
-      (mf4/mark-next-symbols))
-    (t
-      (R) (P #\v) (L)
-      (L) (L)
-      (mf3/mark-prev-symbols))))
-
-(defun mf4/mark-next-symbols ()
-  (con/mark-config ^(l/move-left ^(l/move-left ^(mf5/mark-next-symbols))) #\Space))
-
-(defun mf5/mark-next-symbols ()
-  (cond
-    ((none (cur-sym))
-      (P #\:)
-      (sh/print-output))
-    (t
-      (R) (P #\w) (R)
-      (mf5/mark-next-symbols))))
-
-(defun sh/print-output ()
-  (f/find-first ^(sh1/print-output) ^(inst/print-full-config) #\u))
-
-(defun sh1/print-output ()
-  (L) ; LLL in the paper ??
-  (sh2/print-output))
-
-(defun sh2/print-output ()
-  (cond
-    ((eq (cur-sym) #\D)
-      (R) (R) ; RRRR in the paper ??
-      (sh3/print-output)) ; typo: 'sh2' should be 'sh3'
-    (t
-      (inst/print-full-config))))
-
-(defun sh3/print-output ()
-  (cond
-    ((not (eq (cur-sym) #\C))
-      (inst/print-full-config))
-    (t ; DC..
-      (R) (R)
-      (sh4/print-output))))
-
-(defun sh4/print-output ()
-  (cond
-    ((not (eq (cur-sym) #\C)) ; DC
-      (pe2/append-2 ^(inst/print-full-config) #\0 #\:))
-    (t ; DCC..
-      (R) (R)
-      (sh5/print-output))))
-
-(defun sh5/print-output ()
-  (cond
-    ((not (eq (cur-sym) #\C)) ; DCC
-      (pe2/append-2 ^(inst/print-full-config) #\1 #\:))
-    (t
-      (inst/print-full-config))))
-
-(defun inst/print-full-config ()
-  (g/find-last ^(l/move-left ^(inst1/print-full-config)) #\u))
-
-(defun inst1/print-full-config ()
-  (let ((a (cur-sym)))
-    (R) (P #\Space)
-    (case a
-      (#\L (ce5/copy-all-erase ^(ov/over) #\v #\y #\x #\u #\w))
-      (#\R (ce5/copy-all-erase ^(ov/over) #\v #\x #\u #\y #\w))
-      (#\N (ce5/copy-all-erase ^(ov/over) #\v #\x #\y #\u #\w)))))
-
-(defun ov/over ()
-  (e/reset ^(pe/append ^(anf/advance-to-next) #\D)))
--}
-
-
-
+ov = e'' (pe anf 'D')
