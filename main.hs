@@ -5,20 +5,10 @@ import           Control.Monad.Trans.Reader
 import           Control.Monad.Trans.State.Lazy
 import           System.IO
 
-type Table = ReaderT Handle (StateT Integer IO)
+type T = ReaderT Handle (StateT Integer IO)
 
-moveLeft :: Table ()
-moveLeft = do
-  i <- lift get
-  lift $ put (i - 1)
-
-moveRight :: Table ()
-moveRight = do
-  i <- lift get
-  lift $ put (i + 1)
-
-readSymbol :: Table Char
-readSymbol = do
+symbol :: T Char
+symbol = do
   f <- ask
   i <- lift get
   fileSize <- liftIO $ hFileSize f
@@ -28,247 +18,257 @@ readSymbol = do
       liftIO $ hSeek f AbsoluteSeek i
       liftIO $ hGetChar f
 
-printSymbol :: Char -> Table ()
-printSymbol c = do
+p' :: Char -> T ()
+p' c = do
   f <- ask
   i <- lift get
   liftIO $ hSeek f AbsoluteSeek i
   liftIO $ hPutChar f c
 
-f :: Table () -> Table () -> Char -> Table ()
+l' :: T ()
+l' = do
+  i <- lift get
+  lift $ put (i - 1)
+
+r' :: T ()
+r' = do
+  i <- lift get
+  lift $ put (i + 1)
+
+f :: T () -> T () -> Char -> T ()
 f k r a = do
-  s <- readSymbol
+  s <- symbol
   if s == 'E'
     then do
-      moveLeft
+      l'
       f1 k r a
     else do
-      moveLeft
+      l'
       f k r a
 
-f1 :: Table () -> Table () -> Char -> Table ()
+f1 :: T () -> T () -> Char -> T ()
 f1 k r a = do
-  s <- readSymbol
+  s <- symbol
   if | s == a -> k
      | s == ' ' ->
-       do moveRight
+       do r'
           f2 k r a
      | otherwise ->
-       do moveRight
+       do r'
           f1 k r a
 
-f2 :: Table () -> Table () -> Char -> Table ()
+f2 :: T () -> T () -> Char -> T ()
 f2 k r a = do
-  s <- readSymbol
+  s <- symbol
   if | s == a -> k
      | s == ' ' ->
-       do moveRight
+       do r'
           r
      | otherwise ->
-       do moveRight
+       do r'
           f1 k r a
 
-e :: Table () -> Table () -> Char -> Table ()
+e :: T () -> T () -> Char -> T ()
 e k r a = f (e1 k r a) r a
 
-e1 :: Table () -> Table () -> Char -> Table ()
+e1 :: T () -> T () -> Char -> T ()
 e1 k r a = do
-  printSymbol ' '
+  p' ' '
   k
 
-e' :: Table () -> Char -> Table ()
+e' :: T () -> Char -> T ()
 e' k a = e (e' k a) k a
 
-pe :: Table () -> Char -> Table ()
+pe :: T () -> Char -> T ()
 pe k b = f (pe1 k b) k 'E'
 
-pe1 :: Table () -> Char -> Table ()
+pe1 :: T () -> Char -> T ()
 pe1 k b = do
-  s <- readSymbol
+  s <- symbol
   if s == ' '
     then do
-      printSymbol b
+      p' b
       k
     else do
-      moveRight
-      readSymbol >>= printSymbol
-      moveRight
+      r'
+      symbol >>= p'
+      r'
       pe1 k b
 
-l :: Table () -> Table ()
+l :: T () -> T ()
 l k = do
-  moveLeft
+  l'
   k
 
-f' :: Table () -> Table () -> Char -> Table ()
+f' :: T () -> T () -> Char -> T ()
 f' k = f (l k)
 
-c :: Table () -> Table () -> Char -> Table ()
+c :: T () -> T () -> Char -> T ()
 c k = f' (c1 k)
 
-c1 :: Table () -> Table ()
+c1 :: T () -> T ()
 c1 k = do
-  b <- readSymbol
+  b <- symbol
   pe k b
 
-ce :: Table () -> Table () -> Char -> Table ()
+ce :: T () -> T () -> Char -> T ()
 ce k r a = c (e k r a) r a
 
-ce' :: Table () -> Char -> Table ()
+ce' :: T () -> Char -> T ()
 ce' k a = ce (ce' k a) k a
 
-re :: Table () -> Table () -> Char -> Char -> Table ()
+re :: T () -> T () -> Char -> Char -> T ()
 re k r a b = f (re1 k r a b) r a
 
-re1 :: Table () -> Table () -> Char -> Char -> Table ()
+re1 :: T () -> T () -> Char -> Char -> T ()
 re1 k r a b = do
-  printSymbol ' '
-  printSymbol b
+  p' ' '
+  p' b
   k
 
-re' :: Table () -> Char -> Char -> Table ()
+re' :: T () -> Char -> Char -> T ()
 re' k a b = re (re' k a b) k a b
 
-cr :: Table () -> Table () -> Char -> Table ()
+cr :: T () -> T () -> Char -> T ()
 cr k r a = c (re k r a 'a') r a
 
-cr' :: Table () -> Char -> Table ()
+cr' :: T () -> Char -> T ()
 cr' k a = cr (cr' k a) (re' k 'a' a) a
 
-cp :: Table () -> Table () -> Table () -> Char -> Char -> Table ()
+cp :: T () -> T () -> T () -> Char -> Char -> T ()
 cp y n z a b = f' (cp1 y n b) (f n z b) a
 
-cp1 :: Table () -> Table () -> Char -> Table ()
+cp1 :: T () -> T () -> Char -> T ()
 cp1 y n b = do
-  g <- readSymbol
+  g <- symbol
   f' (cp2 y n g) n b
 
-cp2 :: Table () -> Table () -> Char -> Table ()
+cp2 :: T () -> T () -> Char -> T ()
 cp2 y n g = do
-  s <- readSymbol
+  s <- symbol
   if s == g
     then y
     else n
 
-cpe :: Table () -> Table () -> Table () -> Char -> Char -> Table ()
+cpe :: T () -> T () -> T () -> Char -> Char -> T ()
 cpe y n z a b = cp (e (e y y b) y a) n z a b
 
-cpe' :: Table () -> Table () -> Char -> Char -> Table ()
+cpe' :: T () -> T () -> Char -> Char -> T ()
 cpe' n y a b = cpe (cpe' n y a b) n y a b
 
-g :: Table () -> Table ()
+g :: T () -> T ()
 g k = do
-  s <- readSymbol
+  s <- symbol
   if s == ' '
     then do
-      moveRight
+      r'
       g1 k
     else do
-      moveRight
+      r'
       g k
 
-g1 :: Table () -> Table ()
+g1 :: T () -> T ()
 g1 k = do
-  s <- readSymbol
+  s <- symbol
   if s == ' '
     then k
     else do
-      moveRight
+      r'
       g k
 
-g' :: Table () -> Char -> Table ()
+g' :: T () -> Char -> T ()
 g' k a = g (g1' k a)
 
-g1' :: Table () -> Char -> Table ()
+g1' :: T () -> Char -> T ()
 g1' k a = do
-  s <- readSymbol
+  s <- symbol
   if s == a
     then k
     else do
-      moveLeft
+      l'
       g1' k a
 
-pe2 :: Table () -> Char -> Char -> Table ()
+pe2 :: T () -> Char -> Char -> T ()
 pe2 k a b = pe (pe k b) a
 
-ce2' :: Table () -> Char -> Char -> Table ()
+ce2' :: T () -> Char -> Char -> T ()
 ce2' k a b = ce' (ce' k b) a
 
-ce3' :: Table () -> Char -> Char -> Char -> Table ()
+ce3' :: T () -> Char -> Char -> Char -> T ()
 ce3' k a b c = ce' (ce2' k b c) a
 
-ce4' :: Table () -> Char -> Char -> Char -> Char -> Table ()
+ce4' :: T () -> Char -> Char -> Char -> Char -> T ()
 ce4' k a b c d = ce' (ce3' k b c d) a
 
-ce5' :: Table () -> Char -> Char -> Char -> Char -> Char -> Table ()
+ce5' :: T () -> Char -> Char -> Char -> Char -> Char -> T ()
 ce5' k a b c d e = ce' (ce4' k b c d e) a
 
-e2' :: Table () -> Char -> Char -> Table ()
+e2' :: T () -> Char -> Char -> T ()
 e2' k a b = e' (e' k b) a
 
-e'' :: Table () -> Table ()
+e'' :: T () -> T ()
 e'' k = do
-  s <- readSymbol
+  s <- symbol
   if s == 'E'
     then do
-      moveRight
+      r'
       e1'' k
     else do
-      moveLeft
+      l'
       e'' k
 
-e1'' :: Table () -> Table ()
+e1'' :: T () -> T ()
 e1'' k = do
-  s <- readSymbol
+  s <- symbol
   if s == ' '
     then k
     else do
-      moveRight
-      printSymbol ' '
-      moveRight
+      r'
+      p' ' '
+      r'
       e1'' k
 
-con :: Table () -> Char -> Table ()
+con :: T () -> Char -> T ()
 con k a = do
-  s <- readSymbol
+  s <- symbol
   if s == 'A'
     then do
-      moveLeft
-      printSymbol a
-      moveRight
+      l'
+      p' a
+      r'
       con1 k a
     else do
-      moveRight
-      moveRight
+      r'
+      r'
       con k a
 
-con1 :: Table () -> Char -> Table ()
+con1 :: T () -> Char -> T ()
 con1 k a = do
-  s <- readSymbol
+  s <- symbol
   if | s == 'D' ->
-       do moveRight
-          printSymbol a
-          moveRight
+       do r'
+          p' a
+          r'
           con2 k a
      | s == 'A' ->
-       do moveRight
-          printSymbol a
-          moveRight
+       do r'
+          p' a
+          r'
           con1 k a
      | otherwise -> liftIO $ print "unhandled"
 
-con2 :: Table () -> Char -> Table ()
+con2 :: T () -> Char -> T ()
 con2 k a = do
-  s <- readSymbol
+  s <- symbol
   if s /= 'C'
     then do
-      moveRight
-      moveRight
+      r'
+      r'
       k
     else do
-      moveRight
-      printSymbol a
-      moveRight
+      r'
+      p' a
+      r'
       con2 k a
 
 {- THE UNIVERSAL MACHINE -}
@@ -280,22 +280,22 @@ main = do
 b = f b1 b1 '.'
 
 b1 = do
-  moveRight
-  printSymbol ' '
-  moveRight
-  printSymbol ':'
-  moveRight
-  printSymbol ' '
-  moveRight
-  printSymbol 'D'
-  moveRight
-  printSymbol ' '
-  moveRight
-  printSymbol 'A'
-  moveRight
-  printSymbol ' '
-  moveRight
-  printSymbol 'D'
+  r'
+  p' ' '
+  r'
+  p' ':'
+  r'
+  p' ' '
+  r'
+  p' 'D'
+  r'
+  p' ' '
+  r'
+  p' 'A'
+  r'
+  p' ' '
+  r'
+  p' 'D'
   anf
 
 anf = g' anf1 ':'
@@ -303,18 +303,18 @@ anf = g' anf1 ':'
 anf1 = con fom 'y'
 
 fom = do
-  s <- readSymbol
+  s <- symbol
   if | s == ';' ->
-       do moveRight
-          printSymbol 'z'
-          moveLeft
+       do r'
+          p' 'z'
+          l'
           con fmp 'x'
      | s == 'z' ->
-       do moveLeft
-          moveLeft
+       do l'
+          l'
           fom
      | otherwise ->
-       do moveLeft
+       do l'
           fom
 
 fmp = cpe' (e2' anf 'x' 'y') sim 'x' 'y'
@@ -324,128 +324,128 @@ sim = f' sim1 sim1 'z'
 sim1 = con sim2 ' '
 
 sim2 = do
-  s <- readSymbol
+  s <- symbol
   if s == 'A'
     then sim3
     else do
-      moveLeft
-      printSymbol 'u'
-      moveRight
-      moveRight
-      moveRight
+      l'
+      p' 'u'
+      r'
+      r'
+      r'
       sim2
 
 sim3 = do
-  s <- readSymbol
+  s <- symbol
   if s /= 'A'
     then do
-      moveLeft
-      printSymbol 'y'
+      l'
+      p' 'y'
       e' mf 'z'
     else do
-      moveLeft
-      printSymbol 'y'
-      moveRight
-      moveRight
-      moveRight
+      l'
+      p' 'y'
+      r'
+      r'
+      r'
       sim3
 
 mf = g' mf1 ':'
 
 mf1 = do
-  s <- readSymbol
+  s <- symbol
   if s == 'A'
     then do
-      moveLeft
-      moveLeft
-      moveLeft
-      moveLeft
+      l'
+      l'
+      l'
+      l'
       mf2
     else do
-      moveRight
-      moveRight
+      r'
+      r'
       mf1
 
 mf2 = do
-  s <- readSymbol
+  s <- symbol
   if | s == ':' -> mf4
      | s == 'C' ->
-       do moveRight
-          printSymbol 'x'
-          moveLeft
-          moveLeft
-          moveLeft
+       do r'
+          p' 'x'
+          l'
+          l'
+          l'
           mf2
      | s == 'D' ->
-       do moveRight
-          printSymbol 'x'
-          moveLeft
-          moveLeft
-          moveLeft
+       do r'
+          p' 'x'
+          l'
+          l'
+          l'
           mf3
      | otherwise -> liftIO $ print "unhandled"
 
 mf3 = do
-  s <- readSymbol
+  s <- symbol
   if s == ':'
     then mf4
     else do
-      moveRight
-      printSymbol 'v'
-      moveLeft
-      moveLeft
-      moveLeft
+      r'
+      p' 'v'
+      l'
+      l'
+      l'
       mf3
 
 mf4 = con (l (l mf5)) ' '
 
 mf5 = do
-  s <- readSymbol
+  s <- symbol
   if s == ' '
     then do
-      printSymbol ':'
+      p' ':'
       sh
     else do
-      moveRight
-      printSymbol 'w'
-      moveRight
+      r'
+      p' 'w'
+      r'
       mf5
 
 sh = f sh1 inst 'u'
 
 sh1 = do
-  moveLeft
+  l'
   sh2
 
 sh2 = do
-  s <- readSymbol
+  s <- symbol
   if s == 'D'
     then do
-      moveRight
-      moveRight
+      r'
+      r'
       sh3
     else inst
 
 sh3 = do
-  s <- readSymbol
+  s <- symbol
   if s /= 'C'
     then inst
     else do
-      moveRight
-      moveRight
+      r'
+      r'
       sh4
 
 sh4 = do
-  s <- readSymbol
+  s <- symbol
   if s /= 'C'
     then pe2 inst '0' ':'
     else do
-      moveRight
-      moveRight
+      r'
+      r'
       sh5
 
 sh5 = do
-  s <- readSymbol
+  s <- symbol
   if s /= 'C'
     then pe2 inst '1' ':'
     else inst
@@ -453,12 +453,12 @@ sh5 = do
 inst = g' (l inst1) 'u'
 
 inst1 = do
-    s <- readSymbol
-    moveRight
-    printSymbol ' '
-    case s of
-      'L' -> ce5' ov 'v' 'y' 'x' 'u' 'w'
-      'R' -> ce5' ov 'v' 'x' 'u' 'y' 'w'
-      _ -> ce5' ov 'v' 'x' 'y' 'u' 'w'
+  s <- symbol
+  r'
+  p' ' '
+  case s of
+    'L' -> ce5' ov 'v' 'y' 'x' 'u' 'w'
+    'R' -> ce5' ov 'v' 'x' 'u' 'y' 'w'
+    _   -> ce5' ov 'v' 'x' 'y' 'u' 'w'
 
 ov = e'' (pe anf 'D')
